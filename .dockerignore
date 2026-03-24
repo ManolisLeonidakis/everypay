@@ -1,0 +1,33 @@
+# Dependencies (installed inside the image)
+node_modules/
+vendor/
+
+# Local build output (rebuilt inside Docker)
+public/hot
+public/build/
+
+# Framework cache / sessions / compiled views (generated at runtime)
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+storage/logs/
+*.log
+
+# Secrets — never bake them into the image
+.env
+.env.local
+.env.production
+.env.staging
+.env.testing
+
+# IDE / OS noise
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Tests (not needed in the production image)
+tests/
+phpunit.xml
