@@ -1,37 +1,34 @@
 #!/bin/sh
 set -e
 
-echo "🚀 Laravel container starting..."
+echo "🚀 Starting Laravel container..."
 
-# Περιμένουμε λίγο το filesystem (ασφαλές)
-sleep 1
-
-# Αν δεν υπάρχει .env, το δημιουργούμε (προαιρετικό)
-if [ ! -f .env ]; then
-  echo "⚠️  .env not found, creating from .env.example"
-  cp .env.example .env
-fi
-
-# Permissions (ασφαλές default)
-chown -R www-data:www-data storage bootstrap/cache
-
-# Clear caches
-php artisan key:generate --force || true
-php artisan config:clear
-php artisan cache:clear
-php artisan optimize:clear
-
-# SQLite DB
+# 1️⃣ Δημιουργία SQLite DB αν δεν υπάρχει
 if [ ! -f database/database.sqlite ]; then
-  echo "📦 Creating SQLite database"
-  touch database/database.sqlite
+    touch database/database.sqlite
 fi
 
-# Migrate & Seed
-echo "🗄️  Running migrations & seeders"
+# 2️⃣ Permissions
+chown -R www-data:www-data storage bootstrap/cache database
+chmod -R 775 storage bootstrap/cache database
+
+# 3️⃣ Composer install αν δεν υπάρχει vendor
+if [ ! -d vendor ]; then
+    composer install --prefer-dist --no-interaction --optimize-autoloader
+fi
+
+# 4️⃣ Generate key αν χρειάζεται
+php artisan key:generate --force
+
+# 5️⃣ **Πρώτα τρέξε migrations & seed** πριν οποιοδήποτε cache clear
 php artisan migrate:fresh --seed --force
 
-echo "✅ Laravel ready!"
+# 6️⃣ Τώρα μπορείς να καθαρίσεις cache ή να τρέξεις άλλα artisan commands
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+php artisan optimize:clear
 
-# Εκκίνηση PHP-FPM
+# 7️⃣ Τέλος, start PHP-FPM
 exec php-fpm
