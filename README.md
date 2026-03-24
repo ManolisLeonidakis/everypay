@@ -161,6 +161,33 @@ POST /api/v1/charges
   → TransactionResource (JSON response)
 ```
 
+### How the web dashboard uses the API
+
+The React dashboard does **not** have a separate internal charge flow — it talks to the same REST API that any external client would use.
+
+On page load, the dashboard calls `POST /api/v1/tokens` to obtain a Sanctum Bearer token, then uses that token for every subsequent `POST /api/v1/charges` call made from the charge form.
+
+The demo merchant's credentials (`email` / `password`) are stored in `config/services.php` under the `merchant_api` key and are injected into the Inertia page props by the dashboard route:
+
+```php
+// config/services.php
+'merchant_api' => [
+    'base_url' => 'http://everypay.test/api/v1',
+    'email'    => 'merchant@example.com',
+    'password' => 'password',
+],
+```
+
+```php
+// routes/web.php  (dashboard route)
+return Inertia::render('Dashboard', [
+    'api_email'    => config('services.merchant_api.email'),
+    'api_password' => config('services.merchant_api.password'),
+]);
+```
+
+This means the entire payment flow — even from the UI — goes through the versioned API endpoints, keeping the backend logic in a single place.
+
 ---
 
 ## API Reference
@@ -372,3 +399,18 @@ class StripeProvider implements PaymentProviderInterface
     }
 }
 ```
+
+---
+
+## Assumptions & Trade-offs
+
+| Topic | Decision | Rationale |
+|---|---|---|
+| **Database** | SQLite by default | Zero-dependency setup — no extra container needed. Swap to MySQL/Postgres via `DB_CONNECTION` in `.env`. |
+| **Payment provider** | `FakeStripe` only | Simulates success/failure based on the last digit of the card number (even = success, odd = failure). Real providers implement `PaymentProviderInterface` and are auto-discovered from `app/PaymentMethods/`. |
+| **Dashboard ↔ API auth** | Credentials stored in `config/services.php` | The web dashboard obtains a Sanctum token at page-load time using the demo merchant's credentials from `config/services.php`. This keeps the UI and API flows identical and avoids a separate internal transport layer. In production these values would come from environment variables (`.env`). |
+| **API versioning** | `/api/v1/` prefix | Allows non-breaking changes in future versions without affecting existing integrations. |
+| **Token model** | Per-device Sanctum tokens | Tokens are named by `device_name` and can be revoked individually. No refresh-token flow is needed for this scope. |
+| **Pagination** | Cursor-less numeric pagination | Sufficient for the transaction list at this scale. Cursor pagination can be swapped in without changing the contract. |
+| **No rate limiting** | Omitted | Out of scope for the demo. In production, Laravel's `throttle` middleware would be applied to the token and charge endpoints. |
+| **Merchant `psp_driver` column** | Stored on the `merchants` table | Each merchant can be assigned a different payment provider. The driver string is resolved to a concrete class via `PspFactory`. |
