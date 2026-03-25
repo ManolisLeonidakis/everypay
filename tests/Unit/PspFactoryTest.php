@@ -6,7 +6,7 @@ use App\Contracts\PaymentProviderInterface;
 use App\PaymentMethods\FakeStripe;
 use App\Services\Psp\PspFactory;
 use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class PspFactoryTest extends TestCase
 {
